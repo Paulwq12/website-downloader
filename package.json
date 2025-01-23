@@ -1,0 +1,24 @@
+{
+    "name": "website_downloader",
+    "version": "1.0.0",
+    "description": "A tool to download all HTML, CSS, and JavaScript files of a website",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "axios": "^1.4.0",
+      "cheerio": "^1.0.0-rc.12",
+      "cors": "^2.8.5",
+      "express": "^4.18.2",
+      "fs-extra": "^11.1.1",
+      "puppeteer": "^21.8.1",
+      "archiver": "^6.0.2"
+    },
+    "engines": {
+      "node": ">=16"
+    },
+    "author": "Your Name",
+    "license": "MIT"
+  }
+  
