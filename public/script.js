@@ -30,3 +30,5 @@ async function fetchWebsite() {
         document.getElementById("status").innerText = `Error fetching website: ${error.message}`;
     }
 }
+
+document.querySelector("button").addEventListener("click", fetchWebsite);
