@@ -16,7 +16,7 @@
       "archiver": "^6.0.2"
     },
     "engines": {
-      "node": ">=16"
+      "node": ">=20"
     },
     "author": "Your Name",
     "license": "MIT"
