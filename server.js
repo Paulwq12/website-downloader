@@ -93,6 +93,7 @@ app.post("/fetch", async (req, res) => {
         const zipFile = await fetchWebsite(url);
         res.json({ zipFile });
     } catch (error) {
+        console.error("Error fetching website:", error);
         res.status(500).json({ error: "Error fetching website" });
     }
 });
