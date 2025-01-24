@@ -20,63 +20,69 @@ async function fetchWebsite(url) {
     const websiteFolder = path.join(downloadDir, siteName);
     fs.ensureDirSync(websiteFolder);
 
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "networkidle2" });
+    let browser;
+    try {
+        browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto(url, { waitUntil: "networkidle2" });
 
-    const visitedLinks = new Set();
-    const toVisit = [url];
+        const visitedLinks = new Set();
+        const toVisit = [url];
 
-    while (toVisit.length > 0) {
-        const currentUrl = toVisit.pop();
-        if (visitedLinks.has(currentUrl)) continue;
-        visitedLinks.add(currentUrl);
+        while (toVisit.length > 0) {
+            const currentUrl = toVisit.pop();
+            if (visitedLinks.has(currentUrl)) continue;
+            visitedLinks.add(currentUrl);
 
-        const res = await axios.get(currentUrl);
-        const $ = cheerio.load(res.data);
-        const relativePath = new URL(currentUrl).pathname.replace(/\/$/, "") || "index";
-        const filePath = path.join(websiteFolder, `${relativePath}.html`);
-        fs.ensureFileSync(filePath);
-        fs.writeFileSync(filePath, $.html());
+            const res = await axios.get(currentUrl);
+            const $ = cheerio.load(res.data);
+            const relativePath = new URL(currentUrl).pathname.replace(/\/$/, "") || "index";
+            const filePath = path.join(websiteFolder, `${relativePath}.html`);
+            fs.ensureFileSync(filePath);
+            fs.writeFileSync(filePath, $.html());
 
-        // Find internal links
-        $("a[href]").each((_, element) => {
-            let href = $(element).attr("href");
-            if (href.startsWith("/") || href.startsWith(url)) {
-                const fullUrl = new URL(href, url).href;
-                if (!visitedLinks.has(fullUrl)) toVisit.push(fullUrl);
-            }
-        });
+            // Find internal links
+            $("a[href]").each((_, element) => {
+                let href = $(element).attr("href");
+                if (href.startsWith("/") || href.startsWith(url)) {
+                    const fullUrl = new URL(href, url).href;
+                    if (!visitedLinks.has(fullUrl)) toVisit.push(fullUrl);
+                }
+            });
 
-        // Find CSS & JS files
-        $("link[rel='stylesheet'], script[src]").each(async (_, element) => {
-            let resourceUrl = $(element).attr("href") || $(element).attr("src");
-            if (resourceUrl.startsWith("/")) resourceUrl = new URL(resourceUrl, url).href;
-            if (!resourceUrl.includes(url)) return;
+            // Find CSS & JS files
+            $("link[rel='stylesheet'], script[src]").each(async (_, element) => {
+                let resourceUrl = $(element).attr("href") || $(element).attr("src");
+                if (resourceUrl.startsWith("/")) resourceUrl = new URL(resourceUrl, url).href;
+                if (!resourceUrl.includes(url)) return;
 
-            try {
-                const resourceData = await axios.get(resourceUrl);
-                const resourcePath = path.join(websiteFolder, path.basename(resourceUrl));
-                fs.ensureFileSync(resourcePath);
-                fs.writeFileSync(resourcePath, resourceData.data);
-            } catch (error) {
-                console.error(`Failed to fetch ${resourceUrl}:`, error);
-            }
-        });
+                try {
+                    const resourceData = await axios.get(resourceUrl);
+                    const resourcePath = path.join(websiteFolder, path.basename(resourceUrl));
+                    fs.ensureFileSync(resourcePath);
+                    fs.writeFileSync(resourcePath, resourceData.data);
+                } catch (error) {
+                    console.error(`Failed to fetch ${resourceUrl}:`, error);
+                }
+            });
+        }
+
+        await browser.close();
+
+        // Zip the website folder
+        const zipPath = path.join(downloadDir, `${siteName}.zip`);
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
+
+        archive.pipe(output);
+        archive.directory(websiteFolder, false);
+        await archive.finalize();
+
+        return `/downloads/${siteName}.zip`;
+    } catch (error) {
+        if (browser) await browser.close();
+        throw error;
     }
-
-    await browser.close();
-
-    // Zip the website folder
-    const zipPath = path.join(downloadDir, `${siteName}.zip`);
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-
-    archive.pipe(output);
-    archive.directory(websiteFolder, false);
-    await archive.finalize();
-
-    return `/downloads/${siteName}.zip`;
 }
 
 app.post("/fetch", async (req, res) => {
